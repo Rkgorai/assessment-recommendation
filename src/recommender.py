@@ -1,6 +1,7 @@
 from typing import List, Dict, Any
 from src.llm_router import QueryRouter, AssessmentFilters
 from src.retriever import AssessmentRetriever
+import re
 
 class AssessmentRecommender:
     """Orchestrates the LLM routing and Vector DB retrieval."""
@@ -9,14 +10,32 @@ class AssessmentRecommender:
         self.router = router
         self.retriever = retriever
 
+    def _extract_int(self, val: Any) -> int:
+        """Forcefully extracts the first integer found in a string."""
+        if not val:
+            return None
+        # Finds all consecutive digits in the string
+        numbers = re.findall(r'\d+', str(val))
+        return int(numbers[0]) if numbers else None
+
+
+
     def _prepare_filters(self, llm_filters: AssessmentFilters) -> Dict[str, Any]:
         db_filters = {}
         if llm_filters.remote_support and llm_filters.remote_support not in ["None", "null"]:
             db_filters["remote_support"] = llm_filters.remote_support
         if llm_filters.adaptive_support and llm_filters.adaptive_support not in ["None", "null"]:
             db_filters["adaptive_support"] = llm_filters.adaptive_support
-        if llm_filters.max_duration and str(llm_filters.max_duration).isdigit():
-            db_filters["max_duration"] = int(llm_filters.max_duration)
+
+        # 🚨 FIX: Forcefully rip out the numbers, ignoring words like "mins" or "hours"
+        min_val = self._extract_int(llm_filters.min_duration)
+        if min_val is not None:
+            db_filters["min_duration"] = min_val
+            
+        max_val = self._extract_int(llm_filters.max_duration)
+        if max_val is not None:
+            db_filters["max_duration"] = max_val
+
         return db_filters
 
     def get_recommendations(self, raw_query: str, top_k: int = 5) -> List[Dict[str, Any]]:

@@ -19,6 +19,10 @@ class AssessmentRetriever:
                 conditions.append({"remote_support": filters["remote_support"]})
             if "adaptive_support" in filters and filters["adaptive_support"]:
                 conditions.append({"adaptive_support": filters["adaptive_support"]})
+                            
+            if "min_duration" in filters and filters["min_duration"]:
+                conditions.append({"duration": {"$gte": filters["min_duration"]}})
+                
             if "max_duration" in filters and filters["max_duration"]:
                 conditions.append({"duration": {"$lte": filters["max_duration"]}})
             
