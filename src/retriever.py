@@ -70,7 +70,7 @@ class AssessmentRetriever:
                     # Stop once we hit our exact target number
                     if len(retrieved_docs) >= top_k:
                         break
-                        
+                    
             return retrieved_docs
             
         except Exception as e:

@@ -57,7 +57,8 @@ def ingest_data():
                 "test_types": test_types_str,
                 "duration": duration_val,
                 "remote_support": str(item.get("remote_support", "No")).strip(),
-                "adaptive_support": str(item.get("adaptive_support", "No")).strip()
+                "adaptive_support": str(item.get("adaptive_support", "No")).strip(),
+                "description": str(item.get("description", "")).strip()
             }
             
             documents.append(rich_text)

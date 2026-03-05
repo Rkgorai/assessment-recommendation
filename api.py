@@ -47,7 +47,7 @@ def health_check():
     return {"status": "online", "message": "SHL Recommendation Engine API is running."}
 
 # 4. Define Endpoint 2: Assessment Recommendation (Required by Rubric)
-@app.post("/recommend", response_model=List[Dict[str, Any]])
+@app.post("/recommend", response_model=Dict[str, List[Dict[str, Any]]])
 def get_recommendations(request: QueryRequest):
     """Accepts a job description or query and returns 5 recommended assessments."""
     if not request.query.strip():
@@ -59,7 +59,7 @@ def get_recommendations(request: QueryRequest):
     try:
         # Pass the query to your orchestrator (Rubric specifies min 1, max 10. We use 5.)
         recommendations = recommender.get_recommendations(request.query, top_k=5)
-        return recommendations
+        return  { "recommended_assignments": recommendations }
         
     except Exception as e:
         print(f"❌ API Error: {e}")

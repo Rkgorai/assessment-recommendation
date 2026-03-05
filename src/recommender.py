@@ -109,13 +109,18 @@ class AssessmentRecommender:
 
         formatted_output = []
         for res in final_results[:top_k]:
+
+            raw_types = res["metadata"].get("test_types", "")
+            type_array = [t.strip() for t in raw_types.split(",")] if raw_types else []
+
             formatted_output.append({
-                "name": res["name"],
                 "url": res["url"],
-                "test_types": res['metadata']['test_types'],
-                "duration": res.get("duration", "N/A"),
-                "remote_support": res.get("remote_support", "N/A"),
-                "adaptive_support": res.get("adaptive_support", "N/A")
+                "name": res["name"],
+                "adaptive_support": res["adaptive_support"],
+                "description": res["metadata"].get("description", ""),
+                "duration": res["duration"],
+                "remote_support": res["remote_support"],
+                "test_type": type_array
             })
 
             # print("!!!!!!!!!!res:", res)
