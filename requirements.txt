@@ -1,1 +1,8 @@
 scrapy
+chromadb 
+sentence-transformers 
+pandas
+langchain
+langchain-groq
+pydantic
+python-dotenv

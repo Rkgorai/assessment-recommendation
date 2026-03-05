@@ -27,7 +27,7 @@ class SHLCatalogSpider(scrapy.Spider):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.batch = []
-        self.file_path = 'data/raw_catalog.jsonl'
+        self.file_path = '../data/raw_catalog.jsonl'
         
         os.makedirs(os.path.dirname(self.file_path), exist_ok=True)
         open(self.file_path, 'w', encoding='utf-8').close()

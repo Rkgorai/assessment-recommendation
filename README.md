@@ -54,6 +54,7 @@ The spider extracts SHL assessment products from their product catalog.
 ### Command
 
 ```bash
+cd scraper
 scrapy runspider .\catalog_extractor.py
 ```
 
