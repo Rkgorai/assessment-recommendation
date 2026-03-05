@@ -44,7 +44,7 @@ def health_check():
     """Simple status check to verify the API is running."""
     if recommender is None:
         raise HTTPException(status_code=500, detail="AI Engine failed to initialize.")
-    return {"status": "online", "message": "SHL Recommendation Engine API is running."}
+    return {"status": "healthy"}
 
 # 4. Define Endpoint 2: Assessment Recommendation (Required by Rubric)
 @app.post("/recommend", response_model=Dict[str, List[Dict[str, Any]]])

@@ -3,8 +3,6 @@ import requests
 import pandas as pd
 
 # --- Configuration ---
-# This points to your local FastAPI server. 
-# (If you deploy the API to a cloud service later, you just change this URL)
 API_URL = "http://127.0.0.1:8000/recommend"
 
 st.set_page_config(
@@ -34,28 +32,31 @@ if st.button("Get Recommendations", type="primary"):
     else:
         with st.spinner("🤖 AI is analyzing requirements and searching the SHL catalog..."):
             try:
-                # Send the POST request to your FastAPI backend
                 response = requests.post(API_URL, json={"query": query})
                 
                 if response.status_code == 200:
-                    results = response.json()
+                    results = response.json().get("recommended_assignments", [])
                     
                     if results:
                         st.success(f"✅ Found {len(results)} highly relevant recommendations!")
                         
-                        # Convert the JSON list of dictionaries into a Pandas DataFrame
                         df = pd.DataFrame(results)
+                        
+                        # Reorder columns to put Name and URL right next to each other
+                        df = df[["name", "url", "test_type", "duration", "remote_support", "adaptive_support", "description"]]
                         
                         # Display the data in a clean, interactive tabular format
                         st.dataframe(
                             df,
                             column_config={
                                 "name": "Assessment Name",
-                                "url": st.column_config.LinkColumn("SHL Catalog URL"),
-                                "test_types": "Category",
+                                # This turns the long URL into a clean, clickable "View Assessment" link
+                                "url": st.column_config.LinkColumn("Link", display_text="🔗 View Assessment"),
+                                "test_type": "Category",
                                 "duration": "Duration (Mins)",
                                 "remote_support": "Remote",
-                                "adaptive_support": "Adaptive"
+                                "adaptive_support": "Adaptive",
+                                "description": "Description"
                             },
                             hide_index=True,
                             use_container_width=True
