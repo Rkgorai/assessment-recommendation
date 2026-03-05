@@ -34,7 +34,7 @@ class AssessmentRetriever:
         query_embedding = self.embedding_manager.generate_embeddings([query])[0]
         
         # If we need to post-filter, grab extra results from the DB so we don't run out
-        fetch_k = top_k * 5 if test_type_filter else top_k
+        fetch_k = top_k * 10 if test_type_filter else top_k
         
         query_args = {"query_embeddings": [query_embedding.tolist()], "n_results": fetch_k}
         if where_clause:
