@@ -10,31 +10,63 @@ class AssessmentRecommender:
         self.router = router
         self.retriever = retriever
 
-    def _extract_int(self, val: Any) -> int:
-        """Forcefully extracts the first integer found in a string."""
-        if not val:
-            return None
-        # Finds all consecutive digits in the string
-        numbers = re.findall(r'\d+', str(val))
-        return int(numbers[0]) if numbers else None
+    def _extract_time_from_query(self, query: str) -> tuple[int, int]:
+        """Bulletproof Python RegEx to extract time ranges and convert hours to minutes."""
+        query = query.lower()
+        min_val, max_val = None, None
+
+        # 1. Look for ranges: "30-40 mins", "1-2 hours", "30 to 40 minutes"
+        range_match = re.search(r'(\d+)\s*(?:-|to)\s*(\d+)\s*(min|hour|hr)', query)
+        if range_match:
+            min_val, max_val = int(range_match.group(1)), int(range_match.group(2))
+            if 'hour' in range_match.group(3) or 'hr' in range_match.group(3):
+                min_val *= 60
+                max_val *= 60
+            return min_val, max_val
+        
+        # 2. Look for Max caps: "under 40", "in 40", "less than 40"
+        max_match = re.search(r'(?:under|in|max|less than|maximum)\s*(\d+)\s*(min|hour|hr)?', query)
+        if max_match:
+            max_val = int(max_match.group(1))
+            unit = max_match.group(2) or ''
+            if 'hour' in unit or 'hr' in unit:
+                max_val *= 60
+            return None, max_val
+        
+                # 3. Look for Min floors: "over 30", "at least 30", "more than 30"
+        min_match = re.search(r'(?:over|min|more than|at least)\s*(\d+)\s*(min|hour|hr)?', query)
+        if min_match:
+            min_val = int(min_match.group(1))
+            unit = min_match.group(2) or ''
+            if 'hour' in unit or 'hr' in unit:
+                min_val *= 60
+            return min_val, None
+
+        # 4. Fallback: If it just says "40 mins" without modifiers, assume it's a maximum.
+        single_match = re.search(r'(\d+)\s*(min|hour|hr)', query)
+        if single_match:
+            max_val = int(single_match.group(1))
+            if 'hour' in single_match.group(2) or 'hr' in single_match.group(2):
+                max_val *= 60
+            return None, max_val
+
+        return None, None
 
 
-
-    def _prepare_filters(self, llm_filters: AssessmentFilters) -> Dict[str, Any]:
+    def _prepare_filters(self, llm_filters: AssessmentFilters, raw_query: str) -> Dict[str, Any]:
         db_filters = {}
         if llm_filters.remote_support and llm_filters.remote_support not in ["None", "null"]:
             db_filters["remote_support"] = llm_filters.remote_support
         if llm_filters.adaptive_support and llm_filters.adaptive_support not in ["None", "null"]:
             db_filters["adaptive_support"] = llm_filters.adaptive_support
 
-        # 🚨 FIX: Forcefully rip out the numbers, ignoring words like "mins" or "hours"
-        min_val = self._extract_int(llm_filters.min_duration)
-        if min_val is not None:
-            db_filters["min_duration"] = min_val
-            
-        max_val = self._extract_int(llm_filters.max_duration)
-        if max_val is not None:
-            db_filters["max_duration"] = max_val
+        # Use Python regex on the raw text
+        min_duration, max_duration = self._extract_time_from_query(raw_query)
+        if min_duration is not None:
+            db_filters["min_duration"] = min_duration
+        if max_duration is not None:
+            db_filters["max_duration"] = max_duration
+
 
         return db_filters
 
@@ -43,7 +75,9 @@ class AssessmentRecommender:
         
         analysis = self.router.analyze(raw_query)
         search_query = analysis.search_query
-        base_filters = self._prepare_filters(analysis.filters)
+        base_filters = self._prepare_filters(analysis.filters, raw_query)
+
+        print(f"Prepared DB Filters: {base_filters}")
         
         final_results = []
         

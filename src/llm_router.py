@@ -11,9 +11,6 @@ load_dotenv()
 class AssessmentFilters(BaseModel):
     remote_support: Optional[str] = Field(default=None, description="'Yes' or 'No' only if explicitly requested.")
     adaptive_support: Optional[str] = Field(default=None, description="'Yes' or 'No' only if explicitly requested.")
-    # 🚨 ADDED: Min duration, plus instructions to convert hours to minutes
-    min_duration: Optional[str] = Field(default=None, description="Minimum test duration IN MINUTES. Convert hours to minutes (e.g., '1 hour' = '60').")
-    max_duration: Optional[str] = Field(default=None, description="Maximum test duration IN MINUTES. Convert hours to minutes (e.g., '2 hours' = '120').")
 
 class QueryAnalysis(BaseModel):
     search_query: str = Field(description="The core semantic meaning of the job description or query.")
