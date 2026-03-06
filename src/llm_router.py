@@ -5,6 +5,8 @@ from langchain_core.prompts import PromptTemplate
 from langchain_core.output_parsers import JsonOutputParser
 from pydantic import BaseModel, Field
 from typing import Optional
+import json
+from typing import List, Dict
 
 load_dotenv()
 
@@ -72,3 +74,68 @@ User Query:
                 requires_balance=False, 
                 filters=AssessmentFilters(remote_support=None, adaptive_support=None)
             )
+
+
+
+class RerankResult(BaseModel):
+    selected_urls: List[str] = Field(description="List of the exact assessment URLs that best match the query, ordered from most relevant to least.")
+
+class AssessmentReranker:
+    """Acts as a judge to evaluate and rerank candidate assessments against a Job Description."""
+    
+    def __init__(self):
+        # Temperature 0.0 for strict analytical judging
+        # reranker_model = "meta-llama/llama-4-scout-17b-16e-instruct"
+        reranker_model = "llama-3.1-8b-instant"
+        # reranker_model = "qwen/qwen3-32b"
+        self.llm = ChatGroq(model=reranker_model, temperature=0.0)
+        self.parser = JsonOutputParser(pydantic_object=RerankResult)
+        
+        self.prompt = PromptTemplate(
+            template="""You are an expert HR Assessment Judge. 
+Your task is to read a user's Job Description (JD) and a list of candidate assessments, and select the best matches.
+
+### User Query / JD:
+{query}
+
+### Candidate Assessments:
+{candidates}
+
+### INSTRUCTIONS:
+1. Evaluate each candidate assessment against the skills and requirements in the User Query.
+2. Select up to {top_k} assessments that are the absolute best semantic and technical matches.
+3. Return a JSON object with a single key 'selected_urls' containing the list of URLs of your chosen assessments.
+
+Format Instructions:
+{format_instructions}
+""",
+            input_variables=["query", "candidates", "top_k"],
+            partial_variables={"format_instructions": self.parser.get_format_instructions()},
+        )
+        
+        self.chain = self.prompt | self.llm | self.parser
+
+    def rerank(self, query: str, candidates: List[Dict], top_k: int) -> List[str]:
+        # We strip down the candidates to save LLM token costs and prevent confusion
+        simplified_candidates = [
+            {
+                "url": c.get('url'), 
+                "name": c.get('name'), 
+                "category": c.get('test_types', ''),
+                "description": c.get('description', '')[:300] # Truncate long descriptions
+            } 
+            for c in candidates
+        ]
+        
+        try:
+            print(f"⚖️ LLM Reranker is evaluating {len(candidates)} candidates...")
+            result = self.chain.invoke({
+                "query": query, 
+                "candidates": json.dumps(simplified_candidates), 
+                "top_k": top_k
+            })
+            return result.get('selected_urls', [])[:top_k]
+        except Exception as e:
+            print(f"❌ Reranking Error: {e}")
+            # Fallback: If the LLM fails, just return the top_k from the original ChromaDB search
+            return [c.get('url') for c in candidates[:top_k]]
