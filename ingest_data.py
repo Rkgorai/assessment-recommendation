@@ -37,9 +37,12 @@ def ingest_data():
             except json.JSONDecodeError:
                 continue
             
-            # Safely handle the test_type list
+            # Safely handle the lists
             test_types_list = item.get("test_type", [])
-            test_types_str = ", ".join(test_types_list) if isinstance(test_types_list, list) else ""
+            test_types_str = ", ".join(test_types_list) if isinstance(test_types_list, list) else str(test_types_list)
+            
+            skills_list = item.get("skills", [])
+            skills_str = ", ".join(skills_list) if isinstance(skills_list, list) else str(skills_list)
             
             # Force duration to be a strict integer for ChromaDB math filtering
             try:
@@ -48,7 +51,18 @@ def ingest_data():
                 duration_val = 0
 
             # --- THE RICH TEXT (For Semantic Search) ---
-            rich_text = f"Assessment Name: {item.get('name', 'Unknown')}\nCategory: {test_types_str}\nDescription: {item.get('description', '')}"
+            # Combining all fields exactly as requested
+            parts = [
+                str(item.get("name", "Unknown")),
+                str(duration_val),
+                str(item.get("remote_support", "No")),
+                str(item.get("adaptive_support", "No")),
+                test_types_str,
+                skills_str,
+                str(item.get("description", ""))
+            ]
+            # Join with space, ignoring empty strings to keep it clean
+            rich_text = ' '.join(p for p in parts if p.strip())
             
             # --- THE METADATA (For Hard LLM Filtering) ---
             metadata = {

@@ -18,7 +18,10 @@ class VectorStore:
         self.client = chromadb.PersistentClient(path=self.persist_directory)
         self.collection = self.client.get_or_create_collection(
             name=self.collection_name,
-            metadata={"description": "SHL Assessment Catalog"}
+            metadata={
+                "description": "SHL Assessment Catalog",
+                "hnsw:space": "cosine" 
+            }
         )
         print(f"✅ Vector store ready. Documents: {self.collection.count()}")
 

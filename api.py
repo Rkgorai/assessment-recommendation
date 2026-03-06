@@ -57,8 +57,7 @@ def get_recommendations(request: QueryRequest):
         raise HTTPException(status_code=500, detail="AI Engine is offline.")
         
     try:
-        # Pass the query to your orchestrator (Rubric specifies min 1, max 10. We use 5.)
-        recommendations = recommender.get_recommendations(request.query, top_k=5)
+        recommendations = recommender.get_recommendations(request.query, top_k=10)
         return  { "recommended_assignments": recommendations }
         
     except Exception as e:
