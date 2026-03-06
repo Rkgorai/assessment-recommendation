@@ -73,6 +73,6 @@ def get_recommendations(request: QueryRequest):
 
 # Run the server
 if __name__ == "__main__":
-    port = int(os.getenv("PORT", 10000))
+    port = int(os.getenv("PORT", 7860))
     
     uvicorn.run("api:app", host="0.0.0.0", port=port)
