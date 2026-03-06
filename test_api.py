@@ -1,7 +1,7 @@
 import requests
 import json
 
-BASE_URL = "http://127.0.0.1:8000"
+BASE_URL = "https://rkgorai-shl-assessment-api.hf.space/"
 
 print("1. Testing Health Check...")
 health_response = requests.get(f"{BASE_URL}/health")

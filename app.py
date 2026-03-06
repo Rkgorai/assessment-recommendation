@@ -3,7 +3,7 @@ import requests
 import pandas as pd
 
 # --- Configuration ---
-API_URL = "http://127.0.0.1:8000/recommend"
+API_URL = "https://rkgorai-shl-assessment-api.hf.space/recommend"
 
 st.set_page_config(
     page_title="SHL Assessment Recommender",
