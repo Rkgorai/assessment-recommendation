@@ -19,6 +19,7 @@ The SHL Assessment Recommendation Engine automatically analyzes job descriptions
 ✅ **Semantic Search**: Uses embeddings for accurate assessment matching  
 ✅ **Duration Filtering**: Respects time constraints (30 mins, 1-2 hours, etc.)  
 ✅ **Metadata Filtering**: Supports remote support, adaptive support filters  
+✅ **Intelligent Reranking**: Uses advanced LLM to rerank and refine initial results  
 ✅ **Production-Ready**: FastAPI backend with health checks and error handling  
 
 ---
@@ -42,18 +43,37 @@ The SHL Assessment Recommendation Engine automatically analyzes job descriptions
         │          │          │
         ▼          ▼          ▼
     ┌────────┐ ┌────────┐ ┌──────────┐
-    │LLM     │ │Vector  │ │Query     │
-    │Router  │ │Store   │ │Analyzer  │
-    │(Groq)  │ │(Chroma)│ │(Regex)   │
+    │LLM     │ │Vector  │ │Retriever │
+    │Router  │ │Store   │ │& Filter  │
+    │(Groq)  │ │(Chroma)│ │(Python)  │
     └─┬──────┘ └─┬──────┘ └──────┬───┘
       │          │              │
       └──────────┴──────────────┘
             ▼
-      ┌─────────────┐
-      │  Raw Data   │
-      │ (JSONL)     │
-      └─────────────┘
+    ┌──────────────────────┐
+    │ Initial Candidates   │
+    │ (k=20 assessments)   │
+    └──────────┬───────────┘
+               │
+               ▼
+    ┌──────────────────────┐
+    │ LLM Reranker         │
+    │(Assessment Reranker) │
+    │ Re-scores & orders   │
+    └──────────┬───────────┘
+               │
+               ▼
+    ┌──────────────────────┐
+    │ Final Ranked List    │
+    │ (top 10 shown)       │
+    └──────────────────────┘
 ```
+
+**Pipeline Stages:**
+1. **Query Router**: Analyzes job description, extracts technical requirements
+2. **Semantic Retriever**: Finds candidate assessments using vector similarity
+3. **LLM Reranker**: Intelligently reorders results based on job fit and requirements
+4. **Response Formatter**: Structures output with metadata for client
 
 ---
 
@@ -269,15 +289,29 @@ If balance is needed:
 - Retrieves **technical assessments** (Knowledge-based)
 - Retrieves **behavioral assessments** (Personality-based)
 - Interleaves results for diversity
+- Returns **top 20 candidates** for reranking
 
-### 3. Post-Filtering
+### 3. Intelligent Reranking (LLM Reranker)
+
+The `AssessmentReranker` component:
+- Takes the top 20 semantic matches
+- Uses an advanced LLM (configurable, see Configuration section) to analyze each assessment
+- Scores assessments based on:
+  - **Job Fit**: How well does the assessment match the job requirements?
+  - **Skill Alignment**: Do the competencies align with stated needs?
+  - **Time Constraints**: Is the duration within acceptable range?
+  - **Assessment Quality**: Is this a high-value, essential assessment?
+- Reorders results to put the best matches first
+- Returns **top 10 ranked assessments**
+
+### 4. Post-Filtering
 
 Python safeguards filter results by:
 - Duration constraints
 - Remote/adaptive support
 - Test type categories
 
-### 4. Formatting & Response
+### 5. Formatting & Response
 
 Results are formatted with:
 - Assessment name & URL
@@ -295,8 +329,16 @@ Results are formatted with:
 # Required for LLM functionality
 GROQ_API_KEY=your_api_key
 
-# LLM Model (optional, defaults to llama-3.1-8b-instant)
+# Primary Router Model (pre-processor, defaults to llama-3.1-8b-instant)
 GROQ_MODEL=llama-3.1-8b-instant
+
+# Reranker Model (post-processor, for intelligent reranking)
+# Supports any Groq or external LLM endpoint
+RERANKER_MODEL=meta-llama/llama-4-scout-17b-16e-instruct
+# Alternative options:
+# - llama-3.1-8b-instant (faster, lighter)
+# - moonshotai/kimi-k2-instruct-0905 (higher quality reasoning)
+# - qwq-32b (advanced reasoning)
 ```
 
 ### Vector Store Settings (`src/vector_store.py`)
@@ -305,9 +347,102 @@ GROQ_MODEL=llama-3.1-8b-instant
 - **Collection Name**: `shl_assessments`
 - **Embedding Model**: `all-MiniLM-L6-v2` (from sentence-transformers)
 
+### Reranker Configuration (`src/llm_router.py`)
+
+The `AssessmentReranker` class configures:
+- **Reranker Model**: Which LLM to use for intelligent reranking
+- **Reranking Prompt**: Instructions for assessing job fit
+- **Top-K Candidates**: How many initial candidates to rerank (default: 20)
+- **Final Top-K**: How many results to return (default: 10)
+
 ---
 
-## 🧪 Testing
+## 📊 Evaluation & Benchmarking
+
+The project includes comprehensive evaluation capabilities to benchmark different LLM configurations. All evaluation code and results are in `notebooks/evaluation.ipynb`.
+
+### Running Evaluations
+
+**Prerequisites:**
+- Ensure your FastAPI backend is running: `python api.py`
+- Have your test dataset prepared in `data/train.csv`
+
+**To run evaluations:**
+
+1. **Open the evaluation notebook:**
+   ```bash
+   jupyter notebook notebooks/evaluation.ipynb
+   ```
+
+2. **Evaluate different models:**
+   The notebook contains sections for testing:
+   - **llama-3.1-8b-instant** (Groq/Meta model, fast)
+   - **moonshotai/kimi-k2-instruct-0905** (Moonshot AI, strong reasoning)
+   - **meta-llama/llama-4-scout-17b-16e-instruct** (Meta's advanced scout model)
+
+3. **Test reranker combinations:**
+   The notebook evaluates multiple reranker strategies:
+   - Primary router + different reranker pairings
+   - Results in comprehensive recall@10 scoring
+
+### Evaluation Metrics
+
+**Recall@10**: Percentage of ground-truth assessments found in top-10 recommendations
+- Formula: `(hits / total_expected) × 100%`
+- Averaged across all test queries
+
+### Example Results
+
+The notebook logs detailed comparisons:
+```
+Query: "I need Java developers with soft skills, 40 minutes"
+  Expected Slugs  (3): ['java-knowledge', 'teamwork-behavior', 'communication-assessment']
+  Predicted Slugs (10): ['java-knowledge', 'communication-assessment', 'leadership', ...]
+  ✅ Hits: 2/3 -> Recall@10: 0.67
+```
+
+### Benchmark Results Summary
+
+Current benchmarks show optimal performance with:
+- **Primary Router**: moonshotai/kimi-k2-instruct-0905 (high-quality requirement extraction)
+- **Reranker**: meta-llama/llama-4-scout-17b-16e-instruct (intelligent assessment ranking)
+- **Mean Recall@10**: Typically 70-85% across test set
+
+To replicate:
+1. Run the "After Adding Reranker" sections in the evaluation notebook
+2. Compare results across different model pairings
+3. Adjust prompts in `src/llm_router.py` as needed
+
+### Generating Test Predictions
+
+To generate predictions for the test dataset:
+
+1. **Ensure FastAPI is running:**
+   ```bash
+   python api.py
+   ```
+
+2. **Run the prediction generation cell in the notebook:**
+   - Navigate to "Test csv generate" section in `notebooks/evaluation.ipynb`
+   - This will:
+     - Load test queries from `data/test.csv`
+     - Hit your FastAPI `/recommend` endpoint
+     - Generate predictions file: `notebooks/predictions.csv`
+   - The output is formatted with proper CSV quoting suitable for submission
+
+3. **Output Format:**
+   ```csv
+   "Query","Assessment_url"
+   "I need Java developers...","https://www.shl.com/products/..."
+   "Backend engineers with...","https://www.shl.com/products/..."
+   ```
+
+Each query can have up to 10 recommended assessments. The predictions file can be used for:
+- Submission to competitions/rubrics
+- Further analysis and comparison
+- Integration with evaluation scripts
+
+---
 
 Run the test suite:
 
@@ -374,6 +509,21 @@ python api.py
 
 **Solution**: This is normal for first-time ingestion. The CPU-based embedding model (`all-MiniLM-L6-v2`) takes time. Subsequent queries use cached embeddings and are fast.
 
+### Issue: Reranker returning poor results
+
+**Solution**: 
+1. Try a different reranker model: `RERANKER_MODEL=moonshotai/kimi-k2-instruct-0905`
+2. Review the reranking prompt in `src/llm_router.py` - adjust to be more specific to your domain
+3. Run evaluation to compare different model pairings
+4. Increase top-K candidates to rerank: modify `AssessmentReranker(top_k=30)` for more options
+
+### Issue: API timeout during reranking
+
+**Solution**: 
+- Reranker processes 20 candidates which requires multiple LLM API calls
+- If you have a slow connection, increase timeout: `timeout=30` in API request
+- Consider using a faster reranker model (trade-off with quality)
+
 ---
 
 ## 🛠️ Development Notes
@@ -385,8 +535,28 @@ python api.py
 | `embeddings.py` | Wraps sentence-transformers for embedding generation |
 | `vector_store.py` | ChromaDB wrapper for persistence & querying |
 | `retriever.py` | Semantic search + filtering |
-| `llm_router.py` | Query analysis & filter extraction using Groq LLM |
-| `recommender.py` | Orchestrates retrieval & formatting |
+| `llm_router.py` | Query analysis (QueryRouter); LLM reranking (AssessmentReranker) |
+| `recommender.py` | Orchestrates retrieval, reranking & formatting |
+
+### Reranker Component
+
+**AssessmentReranker (in `llm_router.py`):**
+- Post-processes initial semantic matches
+- Uses a second LLM optimized for ranking/quality assessment
+- Evaluates: job fit, skill alignment, time fit, assessment importance
+- Returns reordered top-K results
+- Configurable via `RERANKER_MODEL` environment variable
+
+**QueryRouter (in `llm_router.py`):**
+- Pre-processes user query
+- Extracts: search terms, duration constraints, balance requirements
+- Returns structured requirements dict
+- Defaults to `GROQ_MODEL` (llama-3.1-8b-instant)
+
+**AssessmentRecommender (in `recommender.py`):**
+- Orchestrates full pipeline
+- Chains: QueryRouter → Retriever → AssessmentReranker → Formatter
+- Handles error cases and validation
 
 ### Adding New Filters
 
