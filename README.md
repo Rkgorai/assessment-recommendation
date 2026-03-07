@@ -129,7 +129,9 @@ Get your free Groq API key from: https://console.groq.com
 assessment-recommendation/
 ├── api.py                           # FastAPI application
 ├── app.py                           # Streamlit UI
+├── Dockerfile                       # Docker for this project
 ├── ingest_data.py                   # Data ingestion pipeline
+├── test_api.py                      # Api Testing Script
 ├── requirements.txt                 # Python dependencies
 ├── README.md                        # This file
 │
@@ -152,7 +154,8 @@ assessment-recommendation/
 │   └── chroma_db/                  # ChromaDB vector database (generated)
 │
 ├── notebooks/
-│   └── main.ipynb                  # Exploration notebook
+│   ├── evaluation.ipynb            # Evaluation script
+│   └── pipeline.ipynb              # Exploration notebook for pipeline
 │
 └── env/                            # Virtual environment
 ```
