@@ -27,7 +27,8 @@ class QueryRouter:
     def __init__(self):
         # We use a low temperature (0.1) so the LLM acts analytically, not creatively
         # model_name = "llama-3.1-8b-instant" 
-        model_name = "moonshotai/kimi-k2-instruct-0905"
+        # model_name = "moonshotai/kimi-k2-instruct-0905"
+        model_name = "meta-llama/llama-4-scout-17b-16e-instruct"
         self.llm = ChatGroq(model=model_name, temperature=0.1)
         self.parser = JsonOutputParser(pydantic_object=QueryAnalysis)
         
